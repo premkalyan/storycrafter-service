@@ -1,6 +1,5 @@
 """
-StoryCrafter FastAPI Service
-HTTP endpoints for backlog generation
+StoryCrafter FastAPI Service - Vercel Deployment
 """
 
 from fastapi import FastAPI, HTTPException, Header
@@ -9,10 +8,7 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 import os
 import sys
-from pathlib import Path
-from mangum import Mangum
 
-# Import from same directory (root level)
 from storycrafter_service import get_storycrafter_service
 
 # Initialize FastAPI app
@@ -25,7 +21,7 @@ app = FastAPI(
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure based on your needs
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -64,48 +60,11 @@ class GenerateBacklogRequest(BaseModel):
     )
 
 
-class BacklogResponse(BaseModel):
-    """Response with generated backlog"""
-    success: bool
-    backlog: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class HealthResponse(BaseModel):
-    """Health check response"""
-    status: str
-    service: str
-    version: str
-
-
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
-
-def validate_api_key(x_api_key: Optional[str] = Header(None)) -> bool:
-    """Validate API key (optional for public endpoints)"""
-    # For now, no authentication required
-    # Can be enhanced later with proper API key validation
-    return True
-
-
-def get_service():
-    """Get StoryCrafter service instance"""
-    try:
-        return get_storycrafter_service()
-    except ValueError as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Service initialization failed: {str(e)}. Please ensure ANTHROPIC_API_KEY and OPENAI_API_KEY are set."
-        )
-
-
 # ============================================================
 # ENDPOINTS
 # ============================================================
 
-@app.get("/", response_model=HealthResponse)
+@app.get("/")
 async def root():
     """Root endpoint - health check"""
     return {
@@ -115,7 +74,7 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {
@@ -125,27 +84,15 @@ async def health_check():
     }
 
 
-@app.post("/generate-backlog", response_model=BacklogResponse)
+@app.post("/generate-backlog")
 async def generate_backlog(
     request: GenerateBacklogRequest,
     x_api_key: Optional[str] = Header(None)
 ):
-    """
-    Generate complete backlog from VISHKAR consensus discussion
-
-    Args:
-        request: Request with consensus messages and optional metadata
-        x_api_key: Optional API key for authentication
-
-    Returns:
-        Complete backlog with epics, stories, acceptance criteria, and tasks
-    """
+    """Generate complete backlog from VISHKAR consensus discussion"""
     try:
-        # Validate API key (currently optional)
-        validate_api_key(x_api_key)
-
         # Get service
-        service = get_service()
+        service = get_storycrafter_service()
 
         # Convert Pydantic models to dicts
         messages = [msg.model_dump() for msg in request.consensus_messages]
@@ -187,17 +134,3 @@ async def test_endpoint():
         "openai_key_set": bool(os.getenv('OPENAI_API_KEY')),
         "python_version": sys.version
     }
-
-
-# ============================================================
-# VERCEL SERVERLESS HANDLER
-# ============================================================
-
-# Wrap FastAPI with Mangum for serverless deployment
-handler = Mangum(app, lifespan="off")
-
-
-# For local development
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
