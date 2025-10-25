@@ -192,8 +192,10 @@ async def test_endpoint():
 # VERCEL SERVERLESS HANDLER
 # ============================================================
 
-# Vercel expects a handler function
-handler = app
+# Wrap FastAPI with Mangum for serverless deployment
+from mangum import Mangum
+
+handler = Mangum(app, lifespan="off")
 
 
 # For local development
