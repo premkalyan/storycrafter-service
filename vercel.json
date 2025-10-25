@@ -1,12 +1,8 @@
 {
-  "version": 2,
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
@@ -14,14 +10,5 @@
       "src": "/(.*)",
       "dest": "api/index.py"
     }
-  ],
-  "env": {
-    "ANTHROPIC_API_KEY": "@anthropic-api-key",
-    "OPENAI_API_KEY": "@openai-api-key",
-    "STORYCRAFTER_CLAUDE_MODEL": "claude-sonnet-4-20250514",
-    "STORYCRAFTER_GPT_MODEL": "gpt-5",
-    "STORYCRAFTER_CLAUDE_MAX_TOKENS": "8192",
-    "STORYCRAFTER_GPT_MAX_TOKENS": "128000",
-    "STORYCRAFTER_TEMPERATURE": "0.5"
-  }
+  ]
 }
