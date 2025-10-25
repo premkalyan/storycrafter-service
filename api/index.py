@@ -2,16 +2,15 @@
 StoryCrafter Vercel Serverless Function
 """
 
-from fastapi import FastAPI
-from mangum import Mangum
 import sys
 import os
 
 # Add parent to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import the app from main
+# Import the FastAPI app from main
+# Vercel expects an 'app' variable for ASGI applications
 from main import app
 
-# Wrap with Mangum for serverless
-handler = Mangum(app, lifespan="off")
+# Vercel will automatically handle the ASGI app
+# No need for Mangum wrapper with native Vercel support
