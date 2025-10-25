@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Optional
 import os
 import sys
 from pathlib import Path
+from mangum import Mangum
 
 # Import from same directory (root level)
 from storycrafter_service import get_storycrafter_service
@@ -193,8 +194,6 @@ async def test_endpoint():
 # ============================================================
 
 # Wrap FastAPI with Mangum for serverless deployment
-from mangum import Mangum
-
 handler = Mangum(app, lifespan="off")
 
 
