@@ -10,7 +10,7 @@ from datetime import datetime
 import os
 import sys
 
-from storycrafter_service import get_storycrafter_service
+from storycrafter_service import get_storycrafter_service, VISHKARStoryCrafterService
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -48,6 +48,13 @@ class ProjectMetadata(BaseModel):
     team_size: Optional[str] = None
 
 
+class AIProvider(BaseModel):
+    """AI provider configuration (passed from MCP)"""
+    provider: str = Field(..., description="AI provider: anthropic, openai, openrouter")
+    model: str = Field(..., description="Model name to use")
+    api_key: str = Field(..., description="API key for the provider")
+
+
 class GenerateBacklogRequest(BaseModel):
     """Request to generate backlog from consensus"""
     consensus_messages: List[ConsensusMessage] = Field(
@@ -68,6 +75,10 @@ class GenerateEpicsRequest(BaseModel):
         description="List of messages from 3-agent consensus discussion"
     )
     project_metadata: Optional[ProjectMetadata] = None
+    ai_provider: Optional[AIProvider] = Field(
+        None,
+        description="AI provider configuration (if not provided, uses environment variables)"
+    )
 
 
 class EpicModel(BaseModel):
@@ -88,6 +99,10 @@ class GenerateStoriesRequest(BaseModel):
         description="List of messages from 3-agent consensus discussion"
     )
     project_metadata: Optional[ProjectMetadata] = None
+    ai_provider: Optional[AIProvider] = Field(
+        None,
+        description="AI provider configuration (if not provided, uses environment variables)"
+    )
 
 
 class RegenerateEpicRequest(BaseModel):
@@ -99,6 +114,10 @@ class RegenerateEpicRequest(BaseModel):
         description="List of messages from 3-agent consensus discussion"
     )
     project_metadata: Optional[ProjectMetadata] = None
+    ai_provider: Optional[AIProvider] = Field(
+        None,
+        description="AI provider configuration (if not provided, uses environment variables)"
+    )
 
 
 class StoryModel(BaseModel):
@@ -126,6 +145,10 @@ class RegenerateStoryRequest(BaseModel):
         description="List of messages from 3-agent consensus discussion"
     )
     project_metadata: Optional[ProjectMetadata] = None
+    ai_provider: Optional[AIProvider] = Field(
+        None,
+        description="AI provider configuration (if not provided, uses environment variables)"
+    )
 
 
 # ============================================================
@@ -221,7 +244,28 @@ async def generate_epics(
 ):
     """Generate epic structure from consensus discussion"""
     try:
-        service = get_storycrafter_service()
+        # Get service instance - use dynamic credentials if provided, otherwise environment variables
+        if request.ai_provider:
+            # Create fresh instance with provided credentials (bypass singleton)
+            if request.ai_provider.provider == "anthropic":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+            elif request.ai_provider.provider == "openai":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                    openai_api_key=request.ai_provider.api_key
+                )
+            else:
+                # For openrouter or other providers, use as anthropic for now
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+        else:
+            # Use singleton with environment variables (backward compatibility)
+            service = get_storycrafter_service()
 
         # Convert Pydantic models to dicts
         messages = [msg.model_dump() for msg in request.consensus_messages]
@@ -258,7 +302,28 @@ async def generate_stories(
 ):
     """Generate stories for a specific epic"""
     try:
-        service = get_storycrafter_service()
+        # Get service instance - use dynamic credentials if provided, otherwise environment variables
+        if request.ai_provider:
+            # Create fresh instance with provided credentials (bypass singleton)
+            if request.ai_provider.provider == "anthropic":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+            elif request.ai_provider.provider == "openai":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                    openai_api_key=request.ai_provider.api_key
+                )
+            else:
+                # For openrouter or other providers, use as anthropic for now
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+        else:
+            # Use singleton with environment variables (backward compatibility)
+            service = get_storycrafter_service()
 
         # Convert Pydantic models to dicts
         epic = request.epic.model_dump()
@@ -298,7 +363,28 @@ async def regenerate_epic(
 ):
     """Regenerate an epic based on user feedback"""
     try:
-        service = get_storycrafter_service()
+        # Get service instance - use dynamic credentials if provided, otherwise environment variables
+        if request.ai_provider:
+            # Create fresh instance with provided credentials (bypass singleton)
+            if request.ai_provider.provider == "anthropic":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+            elif request.ai_provider.provider == "openai":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                    openai_api_key=request.ai_provider.api_key
+                )
+            else:
+                # For openrouter or other providers, use as anthropic for now
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+        else:
+            # Use singleton with environment variables (backward compatibility)
+            service = get_storycrafter_service()
 
         # Convert Pydantic models to dicts
         epic = request.epic.model_dump()
@@ -337,7 +423,28 @@ async def regenerate_story(
 ):
     """Regenerate a story based on user feedback"""
     try:
-        service = get_storycrafter_service()
+        # Get service instance - use dynamic credentials if provided, otherwise environment variables
+        if request.ai_provider:
+            # Create fresh instance with provided credentials (bypass singleton)
+            if request.ai_provider.provider == "anthropic":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+            elif request.ai_provider.provider == "openai":
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
+                    openai_api_key=request.ai_provider.api_key
+                )
+            else:
+                # For openrouter or other providers, use as anthropic for now
+                service = VISHKARStoryCrafterService(
+                    anthropic_api_key=request.ai_provider.api_key,
+                    openai_api_key=os.getenv('OPENAI_API_KEY')
+                )
+        else:
+            # Use singleton with environment variables (backward compatibility)
+            service = get_storycrafter_service()
 
         # Convert Pydantic models to dicts
         epic = request.epic.model_dump()
