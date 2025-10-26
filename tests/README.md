@@ -1,0 +1,82 @@
+# StoryCrafter Test Suite
+
+Automated tests for the StoryCrafter API service.
+
+## Test Structure
+
+```
+tests/
+├── __init__.py           # Test package initialization
+├── conftest.py           # Pytest fixtures and configuration
+├── test_api_endpoints.py # API endpoint tests
+└── README.md            # This file
+```
+
+## Running Tests
+
+### Run all tests
+```bash
+pytest tests/
+```
+
+### Run with verbose output
+```bash
+pytest tests/ -v
+```
+
+### Run specific test class
+```bash
+pytest tests/test_api_endpoints.py::TestGenerateEpicsEndpoint
+```
+
+### Run with coverage
+```bash
+pytest tests/ --cov=. --cov-report=html
+```
+
+## Test Coverage
+
+### API Endpoints (11 tests)
+- ✅ Health check endpoints (3 tests)
+- ✅ `/generate-epics` endpoint (2 tests)
+- ✅ `/generate-stories` endpoint (2 tests)
+- ✅ `/regenerate-epic` endpoint (2 tests)
+- ✅ `/regenerate-story` endpoint (2 tests)
+
+## Continuous Integration
+
+Tests run automatically on:
+- Every push to `master`, `main`, or `develop` branches
+- Every pull request to these branches
+- Multiple Python versions (3.10, 3.11, 3.12)
+
+See `.github/workflows/test.yml` for CI configuration.
+
+## Test Requirements
+
+Test dependencies are in `requirements.txt`:
+- `pytest>=8.0.0` - Test framework
+- `pytest-asyncio>=0.23.0` - Async test support
+- `pytest-mock>=3.12.0` - Mocking utilities
+- `httpx>=0.26.0` - HTTP client for FastAPI testing
+
+## Writing New Tests
+
+1. Add test file to `tests/` directory with `test_` prefix
+2. Use fixtures from `conftest.py` for common test data
+3. Mock external API calls (Anthropic, OpenAI) to avoid costs
+4. Follow naming convention: `test_<feature>_<scenario>`
+
+Example:
+```python
+def test_new_endpoint_success(client, sample_data):
+    response = client.post("/new-endpoint", json=sample_data)
+    assert response.status_code == 200
+```
+
+## Test Philosophy
+
+- **Fast**: Tests run in < 1 second (mocked external calls)
+- **Isolated**: No real API calls or external dependencies
+- **Comprehensive**: Cover success and failure scenarios
+- **Maintainable**: Use fixtures for common test data

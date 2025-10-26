@@ -1,0 +1,37 @@
+{
+  "epic": {
+    "id": "EPIC-1",
+    "title": "User Authentication & Account Management",
+    "description": "Implement complete user authentication system including signup, login, password reset, and profile management. This epic covers all user account lifecycle operations.",
+    "priority": "High",
+    "category": "MVP",
+    "story_count_target": 4
+  },
+  "user_feedback": "Please focus more on social authentication (Google, GitHub) instead of traditional email/password. Also add two-factor authentication for enhanced security. Make the epic title more specific to OAuth-based authentication.",
+  "consensus_messages": [
+    {
+      "role": "system",
+      "content": "Project: Task Manager App - A simple task management application for students to track their assignments and deadlines"
+    },
+    {
+      "role": "alex",
+      "content": "From a product perspective, we need core features: 1) User can create, edit, and delete tasks, 2) Tasks have title, description, due date, and priority, 3) Users can mark tasks as complete, 4) Simple dashboard showing upcoming and overdue tasks, 5) Filter tasks by priority and status. Target users are college students managing multiple assignments."
+    },
+    {
+      "role": "blake",
+      "content": "From a technical perspective: Frontend using React with TypeScript for type safety, Backend using Node.js with Express, PostgreSQL database for data persistence, JWT-based authentication, RESTful API design. We should implement proper error handling, input validation, and unit tests for critical paths."
+    },
+    {
+      "role": "casey",
+      "content": "From a project management perspective: We have 8 weeks with a team of 2 developers. Week 1-2: Authentication and database setup, Week 3-4: Core task CRUD operations, Week 5-6: Dashboard and filtering, Week 7: Testing and bug fixes, Week 8: Deployment and documentation. MVP should focus on basic task management, defer advanced features like collaboration and notifications to post-MVP."
+    }
+  ],
+  "project_metadata": {
+    "project_name": "Task Manager App",
+    "project_description": "Simple task management for students",
+    "target_users": "College students",
+    "platform": "Web (React + Node.js)",
+    "timeline": "8 weeks",
+    "team_size": "2 developers"
+  }
+}
