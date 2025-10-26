@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 import os
 import sys
 
@@ -58,6 +59,73 @@ class GenerateBacklogRequest(BaseModel):
         default=True,
         description="Use full context mode (recommended)"
     )
+
+
+class GenerateEpicsRequest(BaseModel):
+    """Request to generate epic structure"""
+    consensus_messages: List[ConsensusMessage] = Field(
+        ...,
+        description="List of messages from 3-agent consensus discussion"
+    )
+    project_metadata: Optional[ProjectMetadata] = None
+
+
+class EpicModel(BaseModel):
+    """Epic object"""
+    id: str
+    title: str
+    description: str
+    priority: str
+    category: str
+    story_count_target: Optional[int] = 4
+
+
+class GenerateStoriesRequest(BaseModel):
+    """Request to generate stories for an epic"""
+    epic: EpicModel = Field(..., description="Epic to generate stories for")
+    consensus_messages: List[ConsensusMessage] = Field(
+        ...,
+        description="List of messages from 3-agent consensus discussion"
+    )
+    project_metadata: Optional[ProjectMetadata] = None
+
+
+class RegenerateEpicRequest(BaseModel):
+    """Request to regenerate an epic"""
+    epic: EpicModel = Field(..., description="Original epic to regenerate")
+    user_feedback: str = Field(..., description="User feedback on what to change")
+    consensus_messages: List[ConsensusMessage] = Field(
+        ...,
+        description="List of messages from 3-agent consensus discussion"
+    )
+    project_metadata: Optional[ProjectMetadata] = None
+
+
+class StoryModel(BaseModel):
+    """Story object"""
+    id: str
+    title: str
+    description: Optional[str] = None
+    acceptance_criteria: Optional[List[str]] = []
+    technical_tasks: Optional[List[str]] = []
+    priority: Optional[str] = "P1"
+    story_points: Optional[int] = 0
+    estimated_hours: Optional[int] = 0
+    dependencies: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
+    layer: Optional[str] = "fullstack"
+
+
+class RegenerateStoryRequest(BaseModel):
+    """Request to regenerate a story"""
+    epic: EpicModel = Field(..., description="Parent epic for context")
+    story: StoryModel = Field(..., description="Original story to regenerate")
+    user_feedback: str = Field(..., description="User feedback on what to change")
+    consensus_messages: List[ConsensusMessage] = Field(
+        ...,
+        description="List of messages from 3-agent consensus discussion"
+    )
+    project_metadata: Optional[ProjectMetadata] = None
 
 
 # ============================================================
@@ -134,3 +202,160 @@ async def test_endpoint():
         "openai_key_set": bool(os.getenv('OPENAI_API_KEY')),
         "python_version": sys.version
     }
+
+
+@app.post("/generate-epics")
+async def generate_epics(
+    request: GenerateEpicsRequest,
+    x_api_key: Optional[str] = Header(None)
+):
+    """Generate epic structure from consensus discussion"""
+    try:
+        service = get_storycrafter_service()
+
+        # Convert Pydantic models to dicts
+        messages = [msg.model_dump() for msg in request.consensus_messages]
+        metadata = request.project_metadata.model_dump() if request.project_metadata else None
+
+        # Generate epics
+        epics = await service.generate_epics(
+            consensus_messages=messages,
+            project_metadata=metadata
+        )
+
+        return {
+            "success": True,
+            "epics": epics,
+            "metadata": {
+                "total_epics": len(epics),
+                "generated_at": datetime.utcnow().isoformat() + "Z"
+            }
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Epic generation failed: {str(e)}"
+        )
+
+
+@app.post("/generate-stories")
+async def generate_stories(
+    request: GenerateStoriesRequest,
+    x_api_key: Optional[str] = Header(None)
+):
+    """Generate stories for a specific epic"""
+    try:
+        service = get_storycrafter_service()
+
+        # Convert Pydantic models to dicts
+        epic = request.epic.model_dump()
+        messages = [msg.model_dump() for msg in request.consensus_messages]
+        metadata = request.project_metadata.model_dump() if request.project_metadata else None
+
+        # Generate stories
+        stories = await service.generate_stories(
+            epic=epic,
+            consensus_messages=messages,
+            project_metadata=metadata
+        )
+
+        return {
+            "success": True,
+            "stories": stories,
+            "metadata": {
+                "epic_id": epic.get('id'),
+                "total_stories": len(stories),
+                "generated_at": datetime.utcnow().isoformat() + "Z"
+            }
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Story generation failed: {str(e)}"
+        )
+
+
+@app.post("/regenerate-epic")
+async def regenerate_epic(
+    request: RegenerateEpicRequest,
+    x_api_key: Optional[str] = Header(None)
+):
+    """Regenerate an epic based on user feedback"""
+    try:
+        service = get_storycrafter_service()
+
+        # Convert Pydantic models to dicts
+        epic = request.epic.model_dump()
+        messages = [msg.model_dump() for msg in request.consensus_messages]
+        metadata = request.project_metadata.model_dump() if request.project_metadata else None
+
+        # Regenerate epic
+        regenerated_epic = await service.regenerate_epic(
+            epic=epic,
+            user_feedback=request.user_feedback,
+            consensus_messages=messages,
+            project_metadata=metadata
+        )
+
+        return {
+            "success": True,
+            "epic": regenerated_epic,
+            "metadata": {
+                "regenerated_at": datetime.utcnow().isoformat() + "Z"
+            }
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Epic regeneration failed: {str(e)}"
+        )
+
+
+@app.post("/regenerate-story")
+async def regenerate_story(
+    request: RegenerateStoryRequest,
+    x_api_key: Optional[str] = Header(None)
+):
+    """Regenerate a story based on user feedback"""
+    try:
+        service = get_storycrafter_service()
+
+        # Convert Pydantic models to dicts
+        epic = request.epic.model_dump()
+        story = request.story.model_dump()
+        messages = [msg.model_dump() for msg in request.consensus_messages]
+        metadata = request.project_metadata.model_dump() if request.project_metadata else None
+
+        # Regenerate story
+        regenerated_story = await service.regenerate_story(
+            epic=epic,
+            story=story,
+            user_feedback=request.user_feedback,
+            consensus_messages=messages,
+            project_metadata=metadata
+        )
+
+        return {
+            "success": True,
+            "story": regenerated_story,
+            "metadata": {
+                "regenerated_at": datetime.utcnow().isoformat() + "Z"
+            }
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Story regeneration failed: {str(e)}"
+        )

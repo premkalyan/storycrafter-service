@@ -106,6 +106,110 @@ class VISHKARStoryCrafterService:
 
         return vishkar_format
 
+    async def generate_epics(
+        self,
+        consensus_messages: List[Dict[str, str]],
+        project_metadata: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        PUBLIC API: Generate epic structure from consensus messages
+
+        Args:
+            consensus_messages: List of messages from 3-agent discussion
+            project_metadata: Optional project metadata
+
+        Returns:
+            List of epic objects (without stories)
+        """
+        print(f"[StoryCrafter] Generating epics from {len(consensus_messages)} messages")
+
+        full_context = self._format_full_consensus_for_prompt(consensus_messages, project_metadata)
+        epics_list = await self._generate_epic_structure(full_context, project_metadata)
+
+        print(f"[StoryCrafter] Generated {len(epics_list)} epics")
+        return epics_list
+
+    async def generate_stories(
+        self,
+        epic: Dict[str, Any],
+        consensus_messages: List[Dict[str, str]],
+        project_metadata: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        PUBLIC API: Generate stories for a specific epic
+
+        Args:
+            epic: Epic object to generate stories for
+            consensus_messages: List of messages from 3-agent discussion
+            project_metadata: Optional project metadata
+
+        Returns:
+            List of story objects for the epic
+        """
+        print(f"[StoryCrafter] Generating stories for epic: {epic.get('id', 'unknown')}")
+
+        full_context = self._format_full_consensus_for_prompt(consensus_messages, project_metadata)
+        stories = await self._generate_stories_for_epic(epic, full_context, project_metadata)
+
+        print(f"[StoryCrafter] Generated {len(stories)} stories for {epic.get('id', 'unknown')}")
+        return stories
+
+    async def regenerate_epic(
+        self,
+        epic: Dict[str, Any],
+        user_feedback: str,
+        consensus_messages: List[Dict[str, str]],
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        PUBLIC API: Regenerate a single epic based on user feedback
+
+        Args:
+            epic: Original epic object to regenerate
+            user_feedback: User's comments on what needs to change
+            consensus_messages: List of messages from 3-agent discussion
+            project_metadata: Optional project metadata
+
+        Returns:
+            Regenerated epic object
+        """
+        print(f"[StoryCrafter] Regenerating epic: {epic.get('id', 'unknown')}")
+
+        full_context = self._format_full_consensus_for_prompt(consensus_messages, project_metadata)
+        regenerated_epic = await self._regenerate_single_epic(epic, user_feedback, full_context, project_metadata)
+
+        print(f"[StoryCrafter] Regenerated epic {regenerated_epic.get('id', 'unknown')}")
+        return regenerated_epic
+
+    async def regenerate_story(
+        self,
+        epic: Dict[str, Any],
+        story: Dict[str, Any],
+        user_feedback: str,
+        consensus_messages: List[Dict[str, str]],
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        PUBLIC API: Regenerate a single story based on user feedback
+
+        Args:
+            epic: Parent epic object (for context)
+            story: Original story object to regenerate
+            user_feedback: User's comments on what needs to change
+            consensus_messages: List of messages from 3-agent discussion
+            project_metadata: Optional project metadata
+
+        Returns:
+            Regenerated story object
+        """
+        print(f"[StoryCrafter] Regenerating story: {story.get('id', 'unknown')}")
+
+        full_context = self._format_full_consensus_for_prompt(consensus_messages, project_metadata)
+        regenerated_story = await self._regenerate_single_story(epic, story, user_feedback, full_context, project_metadata)
+
+        print(f"[StoryCrafter] Regenerated story {regenerated_story.get('id', 'unknown')}")
+        return regenerated_story
+
     # ============================================================
     # STEP 1: EXTRACT REQUIREMENTS
     # ============================================================
@@ -664,6 +768,314 @@ Return JSON array only."""
         }
 
         return vishkar_format
+
+    # ============================================================
+    # REGENERATION METHODS
+    # ============================================================
+
+    async def _regenerate_single_epic(
+        self,
+        epic: Dict[str, Any],
+        user_feedback: str,
+        full_context: str,
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Regenerate a single epic based on user feedback using Claude Sonnet 4.5
+
+        Args:
+            epic: Original epic object to regenerate
+            user_feedback: User's comments on what needs to change
+            full_context: Full project context
+            project_metadata: Project metadata
+
+        Returns:
+            Regenerated epic object
+        """
+
+        prompt = f"""You are an expert Agile Product Owner creating project epics.
+
+## ORIGINAL EPIC
+
+**ID**: {epic['id']}
+**Title**: {epic['title']}
+**Description**: {epic['description']}
+**Priority**: {epic.get('priority', 'Medium')}
+**Category**: {epic.get('category', 'MVP')}
+
+## USER FEEDBACK
+
+The user has provided the following feedback on this epic:
+
+{user_feedback}
+
+## PROJECT CONTEXT
+
+{full_context}
+
+## TASK
+
+Based on the user feedback, generate an IMPROVED VERSION of this epic.
+
+The regenerated epic should:
+1. Address all points raised in the user feedback
+2. Maintain the same ID: {epic['id']}
+3. Keep the same general scope unless feedback suggests otherwise
+4. Have an improved title and description
+5. Maintain consistency with the project context
+
+## OUTPUT FORMAT
+
+Return a JSON object for the regenerated epic:
+
+{{
+  "id": "{epic['id']}",
+  "title": "Improved Epic Title",
+  "description": "Enhanced epic description (2-3 sentences)",
+  "priority": "High|Medium|Low",
+  "category": "MVP|Post-MVP|Technical",
+  "story_count_target": 4,
+  "regeneration_notes": "Brief note on what was changed based on feedback"
+}}
+
+Generate JSON only, no markdown:"""
+
+        message = self.anthropic_client.messages.create(
+            model=self.claude_model,
+            max_tokens=2048,
+            temperature=self.temperature,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Clean JSON
+        if response_text.startswith('```'):
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+        response_text = response_text.strip()
+
+        regenerated_epic = json.loads(response_text)
+        print(f"[StoryCrafter] Regenerated epic {epic['id']}")
+
+        return regenerated_epic
+
+    async def _regenerate_single_story(
+        self,
+        epic: Dict[str, Any],
+        story: Dict[str, Any],
+        user_feedback: str,
+        full_context: str,
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Regenerate a single story based on user feedback using GPT-5
+
+        Args:
+            epic: Parent epic object (for context)
+            story: Original story object to regenerate
+            user_feedback: User's comments on what needs to change
+            full_context: Full project context
+            project_metadata: Project metadata
+
+        Returns:
+            Regenerated story object with improved acceptance criteria and tasks
+        """
+
+        system_prompt = """You are an expert Agile Product Owner and Technical Architect with 15+ years of experience.
+You create comprehensive, production-ready user stories with detailed acceptance criteria and technical implementation tasks.
+Your stories are clear, actionable, and follow industry best practices."""
+
+        user_prompt = f"""Regenerate a USER STORY based on user feedback.
+
+## PARENT EPIC
+
+**ID**: {epic['id']}
+**Title**: {epic['title']}
+**Description**: {epic['description']}
+
+## ORIGINAL STORY
+
+**ID**: {story['id']}
+**Title**: {story['title']}
+**Description**: {story.get('description', '')}
+**Priority**: {story.get('priority', 'P1')}
+**Story Points**: {story.get('story_points', 0)}
+**Estimated Hours**: {story.get('estimated_hours', 0)}
+
+**Current Acceptance Criteria**:
+{json.dumps(story.get('acceptance_criteria', []), indent=2)}
+
+**Current Technical Tasks**:
+{json.dumps(story.get('technical_tasks', []), indent=2)}
+
+## USER FEEDBACK
+
+The user has provided the following feedback on this story:
+
+{user_feedback}
+
+## PROJECT CONTEXT
+
+{full_context[:2000]}
+
+## TASK
+
+Generate an IMPROVED VERSION of this story that addresses the user feedback.
+
+The regenerated story should:
+1. Address all points raised in the user feedback
+2. Maintain the same ID: {story['id']}
+3. Follow proper format: "As a [persona], I want [goal], so that [benefit]"
+4. Include 4-6 improved acceptance criteria
+5. List 4-7 detailed technical implementation tasks
+6. Assign realistic story points (2, 3, 5, or 8)
+7. Estimate hours appropriately
+8. Identify dependencies if applicable
+9. Add relevant tags (mvp, backend, frontend, etc.)
+10. Specify layer (fullstack, backend, frontend, database, or infrastructure)
+
+## OUTPUT FORMAT
+
+Return a JSON object for the regenerated story. CRITICAL: Output ONLY valid JSON, no markdown:
+
+{{
+  "id": "{story['id']}",
+  "title": "Improved Story Title",
+  "description": "As a [persona], I want [goal], so that [benefit]",
+  "acceptance_criteria": [
+    "Improved testable condition 1",
+    "Improved testable condition 2",
+    "Improved testable condition 3",
+    "Improved testable condition 4",
+    "Improved testable condition 5"
+  ],
+  "technical_tasks": [
+    "Improved implementation task 1",
+    "Improved implementation task 2",
+    "Improved implementation task 3",
+    "Improved implementation task 4",
+    "Improved implementation task 5",
+    "Testing task 6"
+  ],
+  "priority": "P0",
+  "story_points": 5,
+  "estimated_hours": 10,
+  "dependencies": [],
+  "tags": ["mvp", "backend", "frontend"],
+  "layer": "fullstack",
+  "regeneration_notes": "Brief note on what was changed based on feedback"
+}}
+
+Generate JSON only, no markdown code blocks:"""
+
+        # Use GPT-5 for detailed story regeneration
+        response = self.openai_client.chat.completions.create(
+            model=self.gpt_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_completion_tokens=8192,  # More tokens for detailed story
+            response_format={"type": "json_object"}  # Force JSON response
+        )
+
+        response_text = response.choices[0].message.content.strip()
+
+        # Parse JSON
+        try:
+            regenerated_story = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            print(f"[StoryCrafter] ❌ Failed to parse GPT-5 response: {e}")
+            # Fallback to Claude if GPT-5 fails
+            print(f"[StoryCrafter] Falling back to Claude for story {story['id']}")
+            return await self._regenerate_single_story_claude(epic, story, user_feedback, full_context, project_metadata)
+
+        print(f"[StoryCrafter] Regenerated story {story['id']}")
+
+        return regenerated_story
+
+    async def _regenerate_single_story_claude(
+        self,
+        epic: Dict[str, Any],
+        story: Dict[str, Any],
+        user_feedback: str,
+        full_context: str,
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Fallback: Regenerate story using Claude if GPT-5 fails
+        """
+
+        prompt = f"""You are an expert Agile Product Owner creating user stories.
+
+## PARENT EPIC: {epic['title']}
+{epic['description']}
+
+## ORIGINAL STORY
+
+ID: {story['id']}
+Title: {story['title']}
+Description: {story.get('description', '')}
+
+## USER FEEDBACK
+
+{user_feedback}
+
+## PROJECT CONTEXT
+
+{full_context[:1500]}
+
+## TASK
+
+Generate an IMPROVED VERSION addressing the feedback.
+
+Include:
+- "As a [persona], I want [goal], so that [benefit]" format
+- 4-6 improved acceptance criteria
+- 4-7 detailed technical tasks
+- Realistic story points and hours
+
+## OUTPUT FORMAT
+
+JSON object:
+
+{{
+  "id": "{story['id']}",
+  "title": "Improved Title",
+  "description": "As a [persona], I want [goal], so that [benefit]",
+  "acceptance_criteria": ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"],
+  "technical_tasks": ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"],
+  "priority": "P0",
+  "story_points": 5,
+  "estimated_hours": 10,
+  "dependencies": [],
+  "tags": ["mvp", "backend"],
+  "layer": "fullstack",
+  "regeneration_notes": "Changes made based on feedback"
+}}
+
+JSON only:"""
+
+        message = self.anthropic_client.messages.create(
+            model=self.claude_model,
+            max_tokens=4096,
+            temperature=self.temperature,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = message.content[0].text.strip()
+
+        # Clean JSON
+        if response_text.startswith('```'):
+            response_text = response_text.split('```')[1]
+            if response_text.startswith('json'):
+                response_text = response_text[4:]
+        response_text = response_text.strip()
+
+        regenerated_story = json.loads(response_text)
+        return regenerated_story
 
 
 # ============================================================

@@ -25,7 +25,7 @@ StoryCrafter transforms 3-agent consensus discussions into comprehensive project
 
 ### POST /generate-backlog
 
-Generate complete backlog from consensus messages.
+Generate complete backlog from consensus messages (full workflow).
 
 **Request**:
 ```json
@@ -113,6 +113,250 @@ Health check endpoint.
   "version": "2.0.0"
 }
 ```
+
+---
+
+## New Tool Endpoints (Granular Control)
+
+These endpoints provide fine-grained control over the backlog generation process, allowing you to generate and regenerate individual components.
+
+### POST /generate-epics
+
+Generate epic structure only (Phase 1 of backlog generation).
+
+**Request**:
+```json
+{
+  "consensus_messages": [
+    {
+      "role": "system",
+      "content": "Project: Student Task App..."
+    },
+    {
+      "role": "alex",
+      "content": "From a product perspective..."
+    },
+    {
+      "role": "blake",
+      "content": "From a technical perspective..."
+    },
+    {
+      "role": "casey",
+      "content": "From a project management perspective..."
+    }
+  ],
+  "project_metadata": {
+    "project_name": "Student Task App",
+    "timeline": "8 weeks",
+    "team_size": "2 developers"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "epics": [
+    {
+      "id": "EPIC-1",
+      "title": "Authentication & User Management",
+      "description": "Implement user authentication...",
+      "priority": "High",
+      "category": "MVP",
+      "story_count_target": 4
+    }
+  ],
+  "metadata": {
+    "total_epics": 8,
+    "generated_at": "2025-10-26T..."
+  }
+}
+```
+
+### POST /generate-stories
+
+Generate stories for a specific epic.
+
+**Request**:
+```json
+{
+  "epic": {
+    "id": "EPIC-1",
+    "title": "Authentication & User Management",
+    "description": "Implement user authentication...",
+    "priority": "High",
+    "category": "MVP",
+    "story_count_target": 4
+  },
+  "consensus_messages": [
+    {
+      "role": "system",
+      "content": "Project: Student Task App..."
+    }
+  ],
+  "project_metadata": {
+    "project_name": "Student Task App"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "stories": [
+    {
+      "id": "EPIC-1-1",
+      "title": "User Registration",
+      "description": "As a student, I want to...",
+      "acceptance_criteria": [
+        "Given a new user...",
+        "When they submit valid credentials...",
+        "Then account is created..."
+      ],
+      "technical_tasks": [
+        "Create user model",
+        "Build registration API",
+        "Implement form validation",
+        "Write unit tests"
+      ],
+      "priority": "P0",
+      "story_points": 5,
+      "estimated_hours": 10,
+      "dependencies": [],
+      "tags": ["mvp", "backend", "frontend"],
+      "layer": "fullstack"
+    }
+  ],
+  "metadata": {
+    "epic_id": "EPIC-1",
+    "total_stories": 4,
+    "generated_at": "2025-10-26T..."
+  }
+}
+```
+
+### POST /regenerate-epic
+
+Regenerate an epic based on user feedback.
+
+**Request**:
+```json
+{
+  "epic": {
+    "id": "EPIC-1",
+    "title": "Authentication & User Management",
+    "description": "Implement user authentication...",
+    "priority": "High",
+    "category": "MVP",
+    "story_count_target": 4
+  },
+  "user_feedback": "Focus more on OAuth integration and social login. Less emphasis on basic email/password auth.",
+  "consensus_messages": [
+    {
+      "role": "system",
+      "content": "Project: Student Task App..."
+    }
+  ],
+  "project_metadata": {
+    "project_name": "Student Task App"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "epic": {
+    "id": "EPIC-1",
+    "title": "OAuth & Social Authentication",
+    "description": "Implement OAuth-based authentication with Google and GitHub...",
+    "priority": "High",
+    "category": "MVP",
+    "story_count_target": 4,
+    "regeneration_notes": "Updated to focus on OAuth and social login per user feedback"
+  },
+  "metadata": {
+    "regenerated_at": "2025-10-26T..."
+  }
+}
+```
+
+### POST /regenerate-story
+
+Regenerate a story based on user feedback.
+
+**Request**:
+```json
+{
+  "epic": {
+    "id": "EPIC-1",
+    "title": "Authentication & User Management",
+    "description": "Implement user authentication...",
+    "priority": "High",
+    "category": "MVP"
+  },
+  "story": {
+    "id": "EPIC-1-1",
+    "title": "User Registration",
+    "description": "As a student, I want to create an account...",
+    "acceptance_criteria": ["Criterion 1", "Criterion 2"],
+    "technical_tasks": ["Task 1", "Task 2"],
+    "priority": "P0",
+    "story_points": 5,
+    "estimated_hours": 10
+  },
+  "user_feedback": "Add acceptance criteria for password strength validation and email verification",
+  "consensus_messages": [
+    {
+      "role": "system",
+      "content": "Project: Student Task App..."
+    }
+  ],
+  "project_metadata": {
+    "project_name": "Student Task App"
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "story": {
+    "id": "EPIC-1-1",
+    "title": "User Registration with Email Verification",
+    "description": "As a student, I want to create an account with email verification...",
+    "acceptance_criteria": [
+      "Password must be at least 8 characters with uppercase, lowercase, and numbers",
+      "Email verification link sent upon registration",
+      "User cannot login until email is verified",
+      "Verification link expires after 24 hours"
+    ],
+    "technical_tasks": [
+      "Implement password strength validator",
+      "Create email verification service",
+      "Build verification token generation",
+      "Add email verification UI flow",
+      "Write unit tests for validation logic"
+    ],
+    "priority": "P0",
+    "story_points": 8,
+    "estimated_hours": 16,
+    "dependencies": [],
+    "tags": ["mvp", "backend", "frontend", "security"],
+    "layer": "fullstack",
+    "regeneration_notes": "Added password validation and email verification per user feedback"
+  },
+  "metadata": {
+    "regenerated_at": "2025-10-26T..."
+  }
+}
+```
+
+---
 
 ## Local Development
 
