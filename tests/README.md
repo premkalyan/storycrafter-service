@@ -6,15 +6,21 @@ Automated tests for the StoryCrafter API service.
 
 ```
 tests/
-├── __init__.py           # Test package initialization
-├── conftest.py           # Pytest fixtures and configuration
-├── test_api_endpoints.py # API endpoint tests
-└── README.md            # This file
+├── __init__.py                  # Test package initialization
+├── conftest.py                  # Pytest fixtures and configuration
+├── test_api_endpoints.py        # API endpoint tests (11 tests)
+├── test_generate_epics.json     # Sample data for generate-epics
+├── test_generate_stories.json   # Sample data for generate-stories
+├── test_regenerate_epic.json    # Sample data for regenerate-epic
+├── test_regenerate_story.json   # Sample data for regenerate-story
+└── README.md                    # This file
 ```
 
 ## Running Tests
 
-### Run all tests
+### Automated Tests
+
+Run all automated tests:
 ```bash
 pytest tests/
 ```
@@ -32,6 +38,32 @@ pytest tests/test_api_endpoints.py::TestGenerateEpicsEndpoint
 ### Run with coverage
 ```bash
 pytest tests/ --cov=. --cov-report=html
+```
+
+### Manual API Testing
+
+Use the provided JSON test data for manual API testing:
+
+```bash
+# Test generate-epics endpoint
+curl -X POST https://storycrafter-service.vercel.app/generate-epics \
+  -H "Content-Type: application/json" \
+  -d @tests/test_generate_epics.json
+
+# Test generate-stories endpoint
+curl -X POST https://storycrafter-service.vercel.app/generate-stories \
+  -H "Content-Type: application/json" \
+  -d @tests/test_generate_stories.json
+
+# Test regenerate-epic endpoint
+curl -X POST https://storycrafter-service.vercel.app/regenerate-epic \
+  -H "Content-Type: application/json" \
+  -d @tests/test_regenerate_epic.json
+
+# Test regenerate-story endpoint
+curl -X POST https://storycrafter-service.vercel.app/regenerate-story \
+  -H "Content-Type: application/json" \
+  -d @tests/test_regenerate_story.json
 ```
 
 ## Test Coverage
