@@ -204,6 +204,16 @@ async def test_endpoint():
     }
 
 
+@app.post("/debug/echo")
+async def debug_echo(request: dict):
+    """Debug endpoint - echoes back the exact request received"""
+    return {
+        "received": request,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "message": "This is what StoryCrafter received"
+    }
+
+
 @app.post("/generate-epics")
 async def generate_epics(
     request: GenerateEpicsRequest,
