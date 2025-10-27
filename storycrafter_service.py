@@ -593,7 +593,21 @@ Generate 6-8 epics covering all areas. JSON only, no markdown:"""
         project_metadata: Dict[str, Any] = None
     ) -> List[Dict[str, Any]]:
         """
-        Generate 3-6 detailed stories for a single epic using GPT-5
+        Generate 3-6 detailed stories for a single epic
+        Uses Claude (Anthropic) as primary, falls back to GPT-5 if needed
+        """
+        # Use Claude as primary for story generation
+        return await self._generate_stories_for_epic_claude(epic, full_context, project_metadata)
+
+    async def _generate_stories_for_epic_gpt5(
+        self,
+        epic: Dict[str, Any],
+        full_context: str,
+        project_metadata: Dict[str, Any] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        DEPRECATED: Generate 3-6 detailed stories for a single epic using GPT-5
+        Now using Claude as primary method
         """
 
         target_count = epic.get('story_count_target', 4)
@@ -667,8 +681,8 @@ Generate exactly {target_count} stories. Output JSON only:"""
 
         except json.JSONDecodeError as e:
             print(f"[StoryCrafter] ❌ Failed to parse GPT-5 response as JSON: {e}")
-            print(f"[StoryCrafter] Falling back to Claude for {epic['id']}")
-            return await self._generate_stories_for_epic_claude(epic, full_context, project_metadata)
+            # This method is deprecated - should not be called anymore
+            raise ValueError(f"GPT-5 story generation failed: {e}")
 
         return stories
 
@@ -870,7 +884,33 @@ Generate JSON only, no markdown:"""
         project_metadata: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
-        Regenerate a single story based on user feedback using GPT-5
+        Regenerate a single story based on user feedback
+        Uses Claude (Anthropic) as primary method
+
+        Args:
+            epic: Parent epic object (for context)
+            story: Original story object to regenerate
+            user_feedback: User's comments on what needs to change
+            full_context: Full project context
+            project_metadata: Project metadata
+
+        Returns:
+            Regenerated story object with improved acceptance criteria and tasks
+        """
+        # Use Claude as primary for story regeneration
+        return await self._regenerate_single_story_claude(epic, story, user_feedback, full_context, project_metadata)
+
+    async def _regenerate_single_story_gpt5(
+        self,
+        epic: Dict[str, Any],
+        story: Dict[str, Any],
+        user_feedback: str,
+        full_context: str,
+        project_metadata: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        DEPRECATED: Regenerate a single story based on user feedback using GPT-5
+        Now using Claude as primary method
 
         Args:
             epic: Parent epic object (for context)
