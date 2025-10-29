@@ -91,6 +91,9 @@ class VISHKARStoryCrafterService:
         # Step 3: Validate and parse JSON
         parsed_backlog = self._parse_and_validate(raw_backlog)
 
+        # Step 3.5: Validate acceptance criteria quality
+        self._validate_backlog_acceptance_criteria(parsed_backlog)
+
         # Step 4: Transform to VISHKAR frontend format
         vishkar_format = self._transform_to_vishkar_format(parsed_backlog, requirements)
 
@@ -389,7 +392,11 @@ Generate a comprehensive backlog with:
 
 1. **5-8 EPICS** covering all major functional areas
 2. **20-40 USER STORIES** distributed across epics
-3. **ACCEPTANCE CRITERIA** for each story (3-5 criteria per story)
+3. **DETAILED ACCEPTANCE CRITERIA** for each story (4-7 criteria per story)
+   - Use Given-When-Then format where applicable
+   - Make criteria specific, testable, and measurable
+   - Include both functional and non-functional requirements
+   - Cover edge cases and error scenarios
 4. **TECHNICAL TASKS** for each story (3-6 specific implementation tasks)
 5. **MVP PRIORITIZATION** based on timeline
 
@@ -634,7 +641,13 @@ Return a JSON array of stories. CRITICAL: Output ONLY valid JSON, no markdown:
     "id": "{epic['id']}-1",
     "title": "Concise Story Title",
     "description": "As a [persona], I want [goal], so that [benefit]",
-    "acceptance_criteria": ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"],
+    "acceptance_criteria": [
+      "GIVEN [precondition] WHEN [action] THEN [expected result]",
+      "System validates [specific condition] and displays [specific feedback]",
+      "User can successfully [specific action] within [time/performance constraint]",
+      "[Edge case]: System handles [error scenario] by [expected behavior]",
+      "[Non-functional]: [Performance/security/usability requirement met]"
+    ],
     "technical_tasks": ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"],
     "priority": "P0",
     "story_points": 5,
@@ -719,6 +732,116 @@ Return JSON array only."""
 
         stories = json.loads(response_text)
         return stories
+
+    # ============================================================
+    # ACCEPTANCE CRITERIA VALIDATION
+    # ============================================================
+
+    def _validate_acceptance_criteria(
+        self,
+        acceptance_criteria: List[str],
+        story_id: str = "unknown"
+    ) -> Dict[str, Any]:
+        """
+        Validate acceptance criteria for quality and completeness
+
+        Args:
+            acceptance_criteria: List of acceptance criteria strings
+            story_id: Story identifier for logging
+
+        Returns:
+            Dictionary with validation results
+        """
+        validation = {
+            "is_valid": True,
+            "warnings": [],
+            "quality_score": 0,
+            "total_criteria": len(acceptance_criteria)
+        }
+
+        if not acceptance_criteria or len(acceptance_criteria) < 4:
+            validation["is_valid"] = False
+            validation["warnings"].append(f"Story {story_id}: Less than 4 acceptance criteria (found {len(acceptance_criteria)})")
+
+        if len(acceptance_criteria) > 10:
+            validation["warnings"].append(f"Story {story_id}: More than 10 criteria may be too granular (found {len(acceptance_criteria)})")
+
+        # Check for quality indicators
+        quality_indicators = {
+            "has_given_when_then": False,
+            "has_edge_cases": False,
+            "has_non_functional": False,
+            "has_specific_validation": False
+        }
+
+        for criterion in acceptance_criteria:
+            criterion_lower = criterion.lower()
+
+            # Check for Given-When-Then format
+            if "given" in criterion_lower and "when" in criterion_lower and "then" in criterion_lower:
+                quality_indicators["has_given_when_then"] = True
+
+            # Check for edge cases
+            if "edge case" in criterion_lower or "error" in criterion_lower or "failure" in criterion_lower:
+                quality_indicators["has_edge_cases"] = True
+
+            # Check for non-functional requirements
+            if any(term in criterion_lower for term in ["performance", "security", "usability", "accessibility", "non-functional"]):
+                quality_indicators["has_non_functional"] = True
+
+            # Check for specific validation
+            if "validate" in criterion_lower or "verify" in criterion_lower:
+                quality_indicators["has_specific_validation"] = True
+
+        # Calculate quality score
+        validation["quality_score"] = sum(quality_indicators.values())
+        validation["quality_indicators"] = quality_indicators
+
+        # Add recommendation if quality is low
+        if validation["quality_score"] < 2:
+            validation["warnings"].append(
+                f"Story {story_id}: Low quality score ({validation['quality_score']}/4). "
+                "Consider adding Given-When-Then format, edge cases, or non-functional requirements."
+            )
+
+        return validation
+
+    def _validate_backlog_acceptance_criteria(self, backlog: Dict[str, Any]) -> None:
+        """
+        Validate acceptance criteria for all stories in backlog
+
+        Args:
+            backlog: Parsed backlog dictionary
+
+        Logs warnings for stories with low-quality acceptance criteria
+        """
+        print("[StoryCrafter] Validating acceptance criteria quality...")
+
+        total_stories = 0
+        stories_with_warnings = 0
+        all_warnings = []
+
+        for epic in backlog.get('epics', []):
+            for story in epic.get('stories', []):
+                total_stories += 1
+                story_id = story.get('id', 'unknown')
+                acceptance_criteria = story.get('acceptance_criteria', [])
+
+                validation = self._validate_acceptance_criteria(acceptance_criteria, story_id)
+
+                if validation['warnings']:
+                    stories_with_warnings += 1
+                    all_warnings.extend(validation['warnings'])
+
+        # Log summary
+        if all_warnings:
+            print(f"[StoryCrafter] ⚠️  Acceptance Criteria Validation: {stories_with_warnings}/{total_stories} stories have quality warnings")
+            for warning in all_warnings[:5]:  # Show first 5 warnings
+                print(f"[StoryCrafter]   - {warning}")
+            if len(all_warnings) > 5:
+                print(f"[StoryCrafter]   ... and {len(all_warnings) - 5} more warnings")
+        else:
+            print(f"[StoryCrafter] ✅ All {total_stories} stories have quality acceptance criteria")
 
     # ============================================================
     # STEP 3: PARSE AND VALIDATE
@@ -968,7 +1091,11 @@ The regenerated story should:
 1. Address all points raised in the user feedback
 2. Maintain the same ID: {story['id']}
 3. Follow proper format: "As a [persona], I want [goal], so that [benefit]"
-4. Include 4-6 improved acceptance criteria
+4. Include 5-7 DETAILED acceptance criteria using:
+   - Given-When-Then format where applicable
+   - Specific, testable, and measurable conditions
+   - Edge cases and error scenarios
+   - Non-functional requirements (performance, security, usability)
 5. List 4-7 detailed technical implementation tasks
 6. Assign realistic story points (2, 3, 5, or 8)
 7. Estimate hours appropriately
@@ -985,11 +1112,12 @@ Return a JSON object for the regenerated story. CRITICAL: Output ONLY valid JSON
   "title": "Improved Story Title",
   "description": "As a [persona], I want [goal], so that [benefit]",
   "acceptance_criteria": [
-    "Improved testable condition 1",
-    "Improved testable condition 2",
-    "Improved testable condition 3",
-    "Improved testable condition 4",
-    "Improved testable condition 5"
+    "GIVEN [precondition] WHEN [action] THEN [expected result]",
+    "System validates [specific condition] and provides [specific feedback]",
+    "User can successfully [specific action] within [performance constraint]",
+    "[Edge case]: System handles [error scenario] by [expected behavior]",
+    "[Non-functional]: [Performance/security/usability requirement met]",
+    "Additional detailed testable criterion 6"
   ],
   "technical_tasks": [
     "Improved implementation task 1",
@@ -1073,7 +1201,7 @@ Generate an IMPROVED VERSION addressing the feedback.
 
 Include:
 - "As a [persona], I want [goal], so that [benefit]" format
-- 4-6 improved acceptance criteria
+- 5-7 DETAILED acceptance criteria (use Given-When-Then format, include edge cases, non-functional requirements)
 - 4-7 detailed technical tasks
 - Realistic story points and hours
 
@@ -1085,7 +1213,14 @@ JSON object:
   "id": "{story['id']}",
   "title": "Improved Title",
   "description": "As a [persona], I want [goal], so that [benefit]",
-  "acceptance_criteria": ["Criterion 1", "Criterion 2", "Criterion 3", "Criterion 4"],
+  "acceptance_criteria": [
+    "GIVEN [precondition] WHEN [action] THEN [expected result]",
+    "System validates [specific condition] and provides [specific feedback]",
+    "User can [specific action] within [performance constraint]",
+    "[Edge case]: System handles [error scenario] by [expected behavior]",
+    "[Non-functional]: [Performance/security/usability requirement]",
+    "Additional detailed testable criterion"
+  ],
   "technical_tasks": ["Task 1", "Task 2", "Task 3", "Task 4", "Task 5"],
   "priority": "P0",
   "story_points": 5,
