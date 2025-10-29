@@ -2,24 +2,55 @@
 
 AI-powered backlog generator for VISHKAR consensus discussions.
 
+## 📚 Documentation
+
+- **[Complete API Documentation](./DOCUMENTATION.md)** - Comprehensive guide with examples
+- **[Quick Reference](./QUICK_REFERENCE.md)** - Cheat sheet for common operations
+
 ## Overview
 
 StoryCrafter transforms 3-agent consensus discussions into comprehensive project backlogs with:
 - 6-8 Epics covering all project areas
-- 20-40 User Stories with detailed acceptance criteria
+- 20-40 User Stories with **detailed acceptance criteria** (4-7 per story)
 - Technical implementation tasks for each story
 - Story points and time estimates
 - MVP prioritization
+- **Automatic quality validation** for acceptance criteria
+
+## Features
+
+### ✅ Detailed Acceptance Criteria
+Every user story includes **4-7 high-quality acceptance criteria** with:
+- **Given-When-Then** format for clarity
+- **Edge cases** and error scenarios
+- **Non-functional requirements** (performance, security, usability)
+- **Specific validations** with measurable conditions
+- **Automatic quality validation** with scoring (0-4)
+
+Example:
+```
+"GIVEN user is on registration page WHEN they enter valid credentials THEN account is created"
+"System validates email format and displays specific error messages"
+"[Edge case]: System handles duplicate email by showing friendly error"
+"[Non-functional]: Password encrypted using bcrypt with minimum 10 rounds"
+```
+
+### 🔄 Granular Control
+- Generate complete backlog in one call
+- Generate epics only (Phase 1)
+- Generate stories for specific epic (Phase 2)
+- Regenerate individual epics or stories with user feedback
 
 ## Architecture
 
 **Two-Phase Generation**:
 1. **Phase 1**: Claude Sonnet 4.5 generates epic structure (6-8 epics)
-2. **Phase 2**: GPT-5 expands each epic with detailed stories (3-6 per epic)
+2. **Phase 2**: Claude Sonnet 4.5 expands each epic with detailed stories (3-6 per epic)
 
-**Why Two Models?**:
-- Claude: Excellent at high-level strategic planning (epic structure)
-- GPT-5: 128K output tokens + 400K context window for comprehensive story details
+**Quality Validation**:
+- Automatic acceptance criteria validation
+- Quality scoring based on 4 indicators
+- Warnings for low-quality stories
 
 ## API Endpoints
 
